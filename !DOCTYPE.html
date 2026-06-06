@@ -1,0 +1,511 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Noto+Sans:wght@400;600&display=swap');
+:root{
+  --bg:#0d1117;--surf:#161b22;--surf2:#1c2230;
+  --accent:#00c8ff;--green:#0af5a0;--red:#ff4d6d;
+  --text:#e6edf3;--muted:#8b949e;--border:#30363d;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans',sans-serif;background:var(--bg);color:var(--text);padding:12px;font-size:15px;}
+h2{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;text-align:center;
+   letter-spacing:3px;color:var(--accent);text-shadow:0 0 18px rgba(0,200,255,.4);
+   margin-bottom:12px;text-transform:uppercase;}
+
+/* INPUTS */
+.row{display:flex;gap:8px;}
+.row input{flex:1;}
+input,select{
+  width:100%;padding:11px 13px;margin:5px 0;font-size:15px;
+  font-family:'Noto Sans',sans-serif;background:var(--surf);
+  border:1px solid var(--border);border-radius:8px;color:var(--text);outline:none;
+}
+input:focus,select:focus{border-color:var(--accent);}
+input::placeholder{color:var(--muted);}
+option{background:var(--surf2);}
+
+/* BUTTONS */
+.btn-row{display:flex;gap:8px;margin:7px 0;}
+button{
+  flex:1;padding:11px 6px;font-size:14px;
+  font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;
+  border:none;border-radius:8px;background:var(--accent);color:#000;cursor:pointer;
+  text-transform:uppercase;transition:transform .1s,opacity .15s;
+}
+button:active{transform:scale(.97);opacity:.85;}
+button.red{background:var(--red);color:#fff;}
+button.grey{background:var(--surf2);color:var(--text);border:1px solid var(--border);}
+button.grn{background:var(--green);color:#000;}
+
+/* SCANNER */
+#scanBox{
+  display:none;background:var(--surf);border:1px solid var(--border);
+  border-radius:10px;padding:10px;margin:8px 0;
+}
+#reader{width:100%;max-width:300px;margin:0 auto;}
+/* hide html5-qrcode default UI clutter */
+#reader img,#reader select,#reader button{display:none!important;}
+#reader video{border-radius:8px;border:2px solid var(--accent);width:100%!important;height:auto!important;}
+#scanStatus{
+  font-family:'Rajdhani',sans-serif;font-size:14px;color:var(--green);
+  text-align:center;margin-top:6px;min-height:20px;letter-spacing:1px;
+}
+#scanFlash{
+  display:none;position:fixed;inset:0;background:rgba(0,200,255,.13);
+  z-index:999;pointer-events:none;
+}
+
+/* TABLE */
+.tbl-wrap{background:var(--surf);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:10px;}
+table{width:100%;border-collapse:collapse;}
+thead{background:var(--surf2);}
+th{padding:9px 6px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;
+   font-size:13px;color:var(--accent);text-transform:uppercase;}
+td{padding:8px 6px;text-align:center;font-size:14px;border-top:1px solid var(--border);}
+tfoot td{background:var(--surf2);font-family:'Rajdhani',sans-serif;font-weight:700;
+         font-size:16px;color:var(--green);border-top:2px solid var(--border);}
+table input{width:76px;padding:5px;margin:0;font-size:13px;border-radius:6px;text-align:center;}
+.del-btn{background:var(--red);padding:5px 9px;font-size:13px;border-radius:6px;color:#fff;}
+@keyframes rowPop{0%{background:rgba(0,200,255,.2);}100%{background:transparent;}}
+.newrow td{animation:rowPop .35s ease;}
+
+/* CAMERA */
+#camBox{display:none;background:var(--surf);border:1px solid var(--border);
+        border-radius:10px;padding:12px;margin:8px 0;text-align:center;}
+#camVid{width:160px;height:120px;border-radius:8px;border:2px solid var(--accent);}
+#preview img{border-radius:8px;margin-top:8px;border:2px solid var(--green);}
+
+/* BILL (hidden, for screenshot) */
+#bill{display:none;background:#fff;color:#000;padding:20px;font-size:14px;}
+.act{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+</style>
+</head>
+<body>
+<div id="scanFlash"></div>
+<h2>⚡ AKAI DISTRIBUTORS</h2>
+
+<div class="row">
+  <input id="challan" placeholder="Challan No">
+  <input type="date" id="date">
+</div>
+<select id="dealer">
+  <option value="">Select SO</option>
+  <option>SAMARENDRA CHANDRA SARKA</option>
+  <option>AJAY SINGHA</option>
+  <option>SOMEN DAS</option>
+  <option>CHANDAN DAS</option>
+</select>
+<input list="dealerList" id="dealerName" placeholder="Select Dealer">
+<datalist id="dealerList"></datalist>
+
+<div class="btn-row">
+  <button id="scanBtn" onclick="toggleScanner()">📷 Scan QR / Barcode</button>
+  <button class="grey" onclick="toggleEdit()">✏️ Manual Edit</button>
+</div>
+
+<!-- SCANNER -->
+<div id="scanBox">
+  <div id="reader"></div>
+  <div id="scanStatus">Point camera at code…</div>
+  <div class="btn-row" style="margin-top:8px;">
+    <button class="red" onclick="stopScanner()">✖ Close Scanner</button>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div class="tbl-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Variant</th><th>Qty</th><th>MRP</th>
+        <th id="editHead" style="display:none;">Del</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+    <tfoot>
+      <tr><td>TOTAL</td><td id="tQty">0</td><td id="tMrp">0</td><td id="tExtra"></td></tr>
+    </tfoot>
+  </table>
+</div>
+
+<div class="act">
+  <button class="grey" onclick="openCamera()">📸 Confirmation Photo</button>
+  <div id="camBox">
+    <video id="camVid" autoplay></video><br>
+    <div class="btn-row" style="margin-top:8px;">
+      <button class="grn" onclick="capturePhoto()">✅ Capture</button>
+      <button class="grey" onclick="retakePhoto()">🔄 Retake</button>
+    </div>
+    <canvas id="canvas" width="150" height="120" style="display:none;"></canvas>
+    <div id="preview"></div>
+  </div>
+  <div class="btn-row">
+    <button onclick="downloadBill()">⬇ Download</button>
+    <button class="grn" onclick="submitData()">📤 Submit</button>
+  </div>
+</div>
+
+<div id="bill"></div>
+
+<script>
+/* ════════════════════════════════
+   CONFIG
+════════════════════════════════ */
+const API_URL = "https://script.google.com/macros/s/AKfycbxN1ueHxR9seDLWBPOQffVkYOFInQpexU6W8-wJIJ-Nl82CtgjSBf6Q-gB-517orI_k/exec";
+
+/* ════════════════════════════════
+   STATE
+════════════════════════════════ */
+let items      = {};
+let manualMode = false;
+let photoData  = "";
+let camStream  = null;
+
+let scanner    = null;
+let scanActive = false;
+
+/* dedupe: same code ignored for 2 s */
+const seen     = new Map();
+const DEDUPE   = 2000;
+const inFlight = new Set();
+
+/* beep */
+const beep = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+
+/* ════════════════════════════════
+   DEALERS
+════════════════════════════════ */
+window.onload = function() {
+  const today = new Date().toISOString().split("T")[0];
+  document.getElementById("date").value = today;
+
+  fetch(API_URL + "?type=dealers")
+    .then(r => r.json())
+    .then(list => {
+      const dl = document.getElementById("dealerList");
+      dl.innerHTML = "";
+      list.forEach(d => {
+        const o = document.createElement("option");
+        o.value = d; dl.appendChild(o);
+      });
+    }).catch(() => {});
+};
+
+/* ════════════════════════════════
+   SCANNER  (html5-qrcode)
+════════════════════════════════ */
+function toggleScanner() {
+  if (scanActive) { stopScanner(); return; }
+  document.getElementById("scanBox").style.display = "block";
+  document.getElementById("scanBtn").textContent   = "⏹ Stop Scanner";
+
+  scanner = new Html5Qrcode("reader");
+
+  const config = {
+    fps: 30,
+    qrbox: { width: 250, height: 250 },
+    aspectRatio: 1.0,
+    disableFlip: false,
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    formatsToSupport: [
+      Html5QrcodeSupportedFormats.QR_CODE,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.ITF,
+      Html5QrcodeSupportedFormats.CODABAR,
+      Html5QrcodeSupportedFormats.DATA_MATRIX,
+      Html5QrcodeSupportedFormats.PDF_417,
+      Html5QrcodeSupportedFormats.AZTEC
+    ]
+  };
+
+  scanner.start(
+    { facingMode: "environment" },
+    config,
+    onScanSuccess,
+    () => {}   /* silent on no-read */
+  ).then(() => {
+    scanActive = true;
+    document.getElementById("scanStatus").textContent = "📷 Scanning…";
+  }).catch(err => {
+    alert("Camera error: " + err);
+    stopScanner();
+  });
+}
+
+function stopScanner() {
+  if (scanner && scanActive) {
+    scanner.stop().then(() => {
+      scanner.clear();
+      scanner    = null;
+      scanActive = false;
+      document.getElementById("scanBox").style.display = "none";
+      document.getElementById("scanBtn").textContent   = "📷 Scan QR / Barcode";
+      document.getElementById("scanStatus").textContent = "Point camera at code…";
+    }).catch(() => {});
+  } else {
+    document.getElementById("scanBox").style.display = "none";
+    document.getElementById("scanBtn").textContent   = "📷 Scan QR / Barcode";
+    scanActive = false;
+  }
+}
+
+function onScanSuccess(rawValue) {
+  let code = rawValue.trim().replace(/\s/g,"").replace(/\/\/(1|5|10)/g,"");
+  if (!code) return;
+
+  const now = Date.now();
+  if (seen.has(code) && now - seen.get(code) < DEDUPE) return;
+  seen.set(code, now);
+
+  /* clean old entries */
+  seen.forEach((t,k) => { if (now - t > DEDUPE * 4) seen.delete(k); });
+
+  if (inFlight.has(code)) return;
+
+  /* INSTANT feedback */
+  beep.currentTime = 0;
+  beep.play().catch(()=>{});
+  flashScreen();
+  document.getElementById("scanStatus").textContent = "⏳ Looking up: " + code.slice(-16);
+
+  inFlight.add(code);
+
+  fetch(API_URL + "?uid=" + encodeURIComponent(code))
+    .then(r => r.json())
+    .then(data => {
+      inFlight.delete(code);
+
+      if (!data.variant) {
+        document.getElementById("scanStatus").textContent = "❌ Not found: " + code.slice(-14);
+        return;
+      }
+
+      const k = data.variant;
+      if (!items[k]) {
+        items[k] = { variant: k, qty: 1, mrp: Number(data.mrp) || 0, _new: true };
+      } else {
+        items[k].qty++;
+        items[k]._new = true;
+      }
+
+      document.getElementById("scanStatus").textContent = "✅ " + k + "  ×" + items[k].qty;
+      render();
+    })
+    .catch(() => {
+      inFlight.delete(code);
+      document.getElementById("scanStatus").textContent = "⚠ Network error – retry";
+    });
+}
+
+function flashScreen() {
+  const f = document.getElementById("scanFlash");
+  f.style.display = "block";
+  setTimeout(() => f.style.display = "none", 120);
+}
+
+/* ════════════════════════════════
+   TABLE
+════════════════════════════════ */
+function toggleEdit() {
+  manualMode = !manualMode;
+  document.getElementById("editHead").style.display = manualMode ? "" : "none";
+  document.getElementById("tExtra").style.display   = manualMode ? "" : "none";
+  render();
+}
+
+function render() {
+  let html = "", tq = 0, tm = 0;
+
+  Object.keys(items).forEach(key => {
+    const i   = items[key];
+    const qty = Number(i.qty) || 0;
+    const mrp = Number(i.mrp) || 0;
+    tq += qty; tm += qty * mrp;
+
+    const nc = i._new ? ' class="newrow"' : "";
+    i._new = false;
+
+    if (manualMode) {
+      html += `<tr${nc}>
+        <td><input value="${i.variant}" onchange="items['${key}'].variant=this.value"></td>
+        <td><input type="number" value="${qty}" onchange="items['${key}'].qty=+this.value;render()"></td>
+        <td><input type="number" value="${mrp}" onchange="items['${key}'].mrp=+this.value;render()"></td>
+        <td><button class="del-btn" onclick="removeItem('${key}')">✖</button></td>
+      </tr>`;
+    } else {
+      html += `<tr${nc}>
+        <td style="text-align:left;padding-left:10px;">${i.variant}</td>
+        <td>${qty}</td><td>${mrp}</td><td></td>
+      </tr>`;
+    }
+  });
+
+  if (manualMode) {
+    html += `<tr><td colspan="4" style="padding:6px;">
+      <button onclick="addItem()" style="padding:7px 10px;font-size:13px;">➕ Add Item</button>
+    </td></tr>`;
+  }
+
+  document.getElementById("tbody").innerHTML  = html;
+  document.getElementById("tQty").textContent = tq;
+  document.getElementById("tMrp").textContent = tm;
+}
+
+function addItem() {
+  const name = prompt("Enter Variant Name");
+  if (!name) return;
+  items[name] = { variant: name, qty: 1, mrp: 0, _new: true };
+  render();
+}
+
+function removeItem(k) { delete items[k]; render(); }
+
+/* ════════════════════════════════
+   VALIDATION
+════════════════════════════════ */
+function checkFields() {
+  if (!document.getElementById("challan").value ||
+      !document.getElementById("dealer").value  ||
+      !document.getElementById("date").value) {
+    alert("Enter Challan No, SO, and Date"); return false;
+  }
+  if (!document.getElementById("dealerName").value) {
+    alert("Select a Dealer"); return false;
+  }
+  if (!photoData) {
+    alert("Please capture a Confirmation Photo first"); return false;
+  }
+  return true;
+}
+
+/* ════════════════════════════════
+   CONFIRMATION CAMERA
+════════════════════════════════ */
+function openCamera() {
+  navigator.mediaDevices.getUserMedia({ video: { facingMode:"environment" } })
+    .then(s => {
+      camStream = s;
+      document.getElementById("camBox").style.display  = "block";
+      document.getElementById("camVid").srcObject = s;
+    }).catch(e => alert("Camera error: " + e.message));
+}
+
+function capturePhoto() {
+  const cv = document.getElementById("canvas");
+  cv.getContext("2d").drawImage(document.getElementById("camVid"), 0, 0, 150, 120);
+  photoData = cv.toDataURL("image/jpeg");
+  camStream.getTracks().forEach(t => t.stop());
+  document.getElementById("camVid").srcObject = null;
+  document.getElementById("preview").innerHTML = `<img src="${photoData}" width="120">`;
+}
+
+function retakePhoto() {
+  photoData = "";
+  document.getElementById("preview").innerHTML = "";
+  openCamera();
+}
+
+/* ════════════════════════════════
+   DOWNLOAD
+════════════════════════════════ */
+function downloadBill() {
+  if (!checkFields()) return;
+  let tq = 0, tm = 0;
+  const time = new Date().toLocaleTimeString("en-IN");
+
+  let html = `
+    <h2 style="text-align:center;font-family:sans-serif;">AKAI DISTRIBUTORS</h2>
+    <p><b>Challan:</b> ${document.getElementById("challan").value}</p>
+    <p><b>SO:</b> ${document.getElementById("dealer").value}</p>
+    <p><b>Dealer:</b> ${document.getElementById("dealerName").value}</p>
+    <p><b>Date:</b> ${document.getElementById("date").value} &nbsp; <b>Time:</b> ${time}</p>
+    <hr>
+    <table border="1" style="width:100%;border-collapse:collapse;">
+    <tr><th>Variant</th><th>Qty</th><th>MRP</th><th>Total</th></tr>`;
+
+  Object.values(items).forEach(i => {
+    tq += i.qty; tm += i.qty * i.mrp;
+    html += `<tr><td>${i.variant}</td><td>${i.qty}</td><td>${i.mrp}</td><td>${i.qty*i.mrp}</td></tr>`;
+  });
+
+  html += `<tr><td><b>Total</b></td><td><b>${tq}</b></td><td></td><td><b>${tm}</b></td></tr>
+  </table><br>
+  <div style="text-align:center;"><img src="${photoData}" width="140"><br>
+  <small>Confirmation Photo</small></div>`;
+
+  const bill = document.getElementById("bill");
+  bill.innerHTML = html;
+  bill.style.display = "block";
+
+  html2canvas(bill).then(c => {
+    const a = document.createElement("a");
+    a.href     = c.toDataURL();
+    a.download = "AKAI_Bill_" + document.getElementById("challan").value + ".jpg";
+    a.click();
+    bill.style.display = "none";
+  });
+}
+
+/* ════════════════════════════════
+   SUBMIT
+════════════════════════════════ */
+function submitData() {
+  if (!checkFields()) return;
+
+  const cleanItems = Object.values(items).map(i => ({
+    variant: String(i.variant).trim(),
+    qty:     Number(i.qty) || 0
+  }));
+
+  const payload = {
+    challan: document.getElementById("challan").value.trim(),
+    so:      document.getElementById("dealer").value.trim(),
+    dealer:  document.getElementById("dealerName").value,
+    date:    document.getElementById("date").value,
+    items:   cleanItems,
+    photo:   photoData
+  };
+
+  fetch(API_URL, {
+    method: "POST",
+    body: new URLSearchParams({ data: JSON.stringify(payload) })
+  })
+  .then(async res => {
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch { throw new Error("Invalid response from server"); }
+
+    if (data.status !== "success") throw new Error(data.message || "Server error");
+
+    let temp = {};
+    (data.notMatched || []).forEach(i => { temp[i.variant] = i; });
+    items = temp;
+    render();
+
+    if (!data.notMatched || data.notMatched.length === 0) {
+      alert("✅ Submitted successfully!");
+      location.reload();
+    } else {
+      alert("⚠ Some items did not match — check the table.");
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert("❌ Submit failed: " + err.message);
+  });
+}
+</script>
+</body>
+</html>
