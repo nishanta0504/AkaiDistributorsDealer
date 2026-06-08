@@ -88,14 +88,12 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
 #closeScan{background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 #closeScan:active{background:var(--red)}
-#reader{width:100%}
-/* Override html5-qrcode internal box to look like a wide barcode scanner */
-#reader video { border-radius:0 !important; }
-.scan-tip{
-  text-align:center;padding:4px 12px 0;
-  font-size:10px;color:rgba(255,255,255,.45);
-  letter-spacing:.3px;
-}
+#scanVideo{display:block;width:100%;max-height:240px;object-fit:cover;background:#000;}
+#scanCanvas{display:none}
+.scan-line-wrap{position:relative;overflow:hidden}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:rgba(245,158,11,.85);box-shadow:0 0 8px rgba(245,158,11,.7);animation:scanMove 1.6s ease-in-out infinite;z-index:10;pointer-events:none;}
+@keyframes scanMove{0%{top:15%}50%{top:80%}100%{top:15%}}
+.scan-tip{text-align:center;padding:4px 12px 0;font-size:10px;color:rgba(255,255,255,.45);letter-spacing:.3px;}
 .scan-tip b{color:var(--accent)}
 .scan-fb{text-align:center;padding:4px 12px 8px;font-size:12px;color:rgba(255,255,255,.65);min-height:30px;transition:.15s}
 
@@ -262,8 +260,13 @@ td input[type="number"],td input[type="text"]{width:68px;padding:5px 6px;font-si
         <span><div class="pulse-dot"></div>Scanner Active</span>
         <button id="closeScan" onclick="closeScanner()">×</button>
       </div>
-      <div id="reader"></div>
-      <div class="scan-tip">QR code <b>or</b> long barcode — align inside the box &nbsp;|&nbsp; <b>Rotate phone sideways</b> for barcodes</div>
+      <div class="scan-line-wrap">
+        <video id="scanVideo" autoplay playsinline muted></video>
+        <div class="scan-line"></div>
+      </div>
+      <canvas id="scanCanvas"></canvas>
+      <div id="readerFallback" style="display:none"></div>
+      <div class="scan-tip">Works with <b>QR codes</b> &amp; <b>long barcodes</b> — hold steady, good light</div>
       <div class="scan-fb" id="scanFeedback">Point camera at barcode or QR code</div>
     </div>
   </div>
@@ -530,97 +533,181 @@ function refreshSummary() {
 }
 
 /* ══════════════════════════════════════════════════════
-   SCANNER — supports BOTH QR codes AND 1D barcodes
-   (Code128, Code39, EAN, ITF, etc.)
+   NATIVE BARCODE SCANNER
+   Uses browser BarcodeDetector API directly — no library,
+   no ZXing overhead. Works for ALL barcode types:
+   QR Code, Code128, Code39, EAN-13, UPC-A, ITF, DataMatrix.
 
-   KEY SETTINGS FOR 1D BARCODES:
-   • Wide rectangular qrbox (280 × 100) so long barcodes fit
-   • aspectRatio: 1.8 → camera fills width, great for landscape
-   • formatsToSupport lists every common 1D + QR format
-   • useBarCodeDetectorIfSupported → uses phone's native
-     BarcodeDetector API (Chrome/Samsung) which is fastest
-   • fps: 30 for maximum responsiveness
-   • User hint shown to hold phone horizontally for barcodes
+   Reads every video frame via requestAnimationFrame for
+   maximum speed — same engine that powers Google Lens.
+
+   Falls back to html5-qrcode if BarcodeDetector unavailable
+   (older iOS Safari).
+
+   INPUT CLEANING: strips //1 //5 //10 suffixes that some
+   barcode systems append.
    ══════════════════════════════════════════════════════ */
-function openScanner() {
-  document.getElementById("readerBox").style.display = "block";
-  if (scanning) return;
 
-  // Build format list: all 1D types + QR
+let scanStream  = null;   // MediaStream for native scanner
+let scanRafId   = null;   // requestAnimationFrame handle
+let nativeDetector = null;
+
+/* Strip //1 //5 //10 //N shortcuts that may be encoded in barcodes */
+function cleanBarcode(raw) {
+  return String(raw || "").trim().replace(/\/\/\d+$/, "").trim();
+}
+
+function onScanResult(rawCode) {
+  if (scanLock) return;
+  const code = cleanBarcode(rawCode);
+  if (!code) return;
+  scanLock = true;
+
+  const flash = document.getElementById("scanFlash");
+  flash.classList.add("flash");
+  setTimeout(() => flash.classList.remove("flash"), 110);
+  beep();
+
+  const fb = document.getElementById("scanFeedback");
+  fb.textContent = "🔍 " + code.substring(0, 24) + "…";
+
+  lookupUID(code)
+    .then(data => {
+      if (!data || !data.variant) {
+        showToast("Not found: " + code.substring(0, 18), "error");
+        fb.textContent = "❌ Not found — try again";
+      } else {
+        if (!items[data.variant]) {
+          items[data.variant] = { variant: data.variant, qty: 1, mrp: Number(data.mrp)||0, exceeded: false, alreadyFull: false };
+        } else {
+          items[data.variant].qty++;
+        }
+        render();
+        fb.textContent = "✅ " + data.variant + "  ×" + items[data.variant].qty;
+        showToast(data.variant + " ×" + items[data.variant].qty, "success", 1600);
+      }
+    })
+    .catch(() => { showToast("Lookup error","error"); fb.textContent = "❌ Error"; })
+    .finally(() => { setTimeout(() => { scanLock = false; }, 900); });
+}
+
+/* ── Try to initialise native BarcodeDetector ── */
+async function tryNativeDetector() {
+  if (!("BarcodeDetector" in window)) return null;
+  try {
+    const formats = await BarcodeDetector.getSupportedFormats();
+    return new BarcodeDetector({ formats });
+  } catch(e) { return null; }
+}
+
+/* ── Native scan loop (RAF) ── */
+function nativeScanLoop(video, canvas, ctx, detector) {
+  if (!scanning) return;
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    detector.detect(canvas)
+      .then(results => {
+        if (results.length > 0) onScanResult(results[0].rawValue);
+      })
+      .catch(() => {});
+  }
+  scanRafId = requestAnimationFrame(() => nativeScanLoop(video, canvas, ctx, detector));
+}
+
+/* ── html5-qrcode fallback for browsers without BarcodeDetector ── */
+function openScannerFallback() {
   const formats = [];
   try {
     const F = Html5QrcodeSupportedFormats;
-    const wanted = [
-      "QR_CODE","CODE_128","CODE_39","CODE_93",
-      "EAN_13","EAN_8","UPC_A","UPC_E",
-      "ITF","CODABAR","DATA_MATRIX","PDF_417","AZTEC"
-    ];
-    wanted.forEach(name => { if (F[name] !== undefined) formats.push(F[name]); });
+    ["QR_CODE","CODE_128","CODE_39","CODE_93","EAN_13","EAN_8",
+     "UPC_A","UPC_E","ITF","CODABAR","DATA_MATRIX","PDF_417","AZTEC"]
+    .forEach(n => { if (F[n] !== undefined) formats.push(F[n]); });
   } catch(e) {}
 
   const cfg = { verbose: false };
-  if (formats.length > 0) cfg.formatsToSupport = formats;
+  if (formats.length) cfg.formatsToSupport = formats;
+  scanner = new Html5Qrcode("readerFallback", cfg);
 
-  scanner = new Html5Qrcode("reader", cfg);
+  // show fallback div
+  document.getElementById("readerFallback").style.display = "block";
+  document.getElementById("scanVideo").style.display = "none";
 
-  // Responsive box: wide rectangle for 1D barcodes, fits QR too
-  const vw      = Math.min(window.innerWidth, 560);
-  const boxW    = Math.min(vw - 40, 300);
-  const boxH    = Math.round(boxW * 0.38);   // ~38% height = ideal for Code128
-
+  const vw = Math.min(window.innerWidth, 560);
+  const bw = Math.min(vw - 40, 300);
   scanner.start(
     { facingMode: "environment" },
-    {
-      fps: 30,
-      qrbox:        { width: boxW, height: boxH },
-      aspectRatio:  1.78,        // 16:9 — wider camera, great for long barcodes
-      disableFlip:  false,
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    },
-    scannedCode => {
-      if (scanLock) return;
-      scanLock = true;
-
-      // Instant feedback
-      const flash = document.getElementById("scanFlash");
-      flash.classList.add("flash");
-      setTimeout(() => flash.classList.remove("flash"), 110);
-      beep();
-
-      const fb = document.getElementById("scanFeedback");
-      fb.textContent = "🔍 " + scannedCode.substring(0, 22) + "…";
-
-      lookupUID(scannedCode)
-        .then(data => {
-          if (!data || !data.variant) {
-            showToast("Not found: " + scannedCode.substring(0, 16), "error");
-            fb.textContent = "❌ Not found — try again";
-          } else {
-            if (!items[data.variant]) {
-              items[data.variant] = { variant: data.variant, qty: 1, mrp: Number(data.mrp)||0, exceeded: false, alreadyFull: false };
-            } else {
-              items[data.variant].qty++;
-            }
-            render();
-            fb.textContent = "✅ " + data.variant + "  ×" + items[data.variant].qty;
-            showToast(data.variant + " ×" + items[data.variant].qty, "success", 1600);
-          }
-        })
-        .catch(() => { showToast("Lookup error","error"); fb.textContent = "❌ Error"; })
-        .finally(() => { setTimeout(() => { scanLock = false; }, 900); });
-    },
+    { fps: 30, qrbox: { width: bw, height: Math.round(bw * 0.42) },
+      aspectRatio: 1.78, disableFlip: false,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
+    raw => onScanResult(raw),
     () => {}
   );
+}
+
+function openScanner() {
+  document.getElementById("readerBox").style.display = "block";
+  if (scanning) return;
   scanning = true;
+
+  const video  = document.getElementById("scanVideo");
+  const canvas = document.getElementById("scanCanvas");
+  const ctx    = canvas.getContext("2d");
+  const fb     = document.getElementById("scanFeedback");
+  fb.textContent = "Starting camera…";
+
+  // Request highest-res rear camera
+  navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: { ideal: "environment" },
+      width:  { ideal: 1920 },
+      height: { ideal: 1080 }
+    }
+  })
+  .then(async stream => {
+    scanStream = stream;
+    video.srcObject = stream;
+    await video.play();
+    fb.textContent = "Point at barcode or QR code";
+
+    // Prefer native BarcodeDetector
+    nativeDetector = await tryNativeDetector();
+
+    if (nativeDetector) {
+      nativeScanLoop(video, canvas, ctx, nativeDetector);
+    } else {
+      // Fallback: html5-qrcode
+      openScannerFallback();
+    }
+  })
+  .catch(err => {
+    scanning = false;
+    showToast("Camera error: " + err.message, "error");
+    document.getElementById("readerBox").style.display = "none";
+  });
 }
 
 function closeScanner() {
-  if (scanner && scanning) {
-    scanner.stop()
-      .then(() => { scanning = false; document.getElementById("readerBox").style.display = "none"; })
-      .catch(() => { scanning = false; document.getElementById("readerBox").style.display = "none"; });
+  scanning = false;
+
+  // Stop RAF loop
+  if (scanRafId) { cancelAnimationFrame(scanRafId); scanRafId = null; }
+
+  // Stop camera stream
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+
+  // Stop html5-qrcode fallback if running
+  if (scanner) {
+    scanner.stop().catch(() => {});
+    scanner = null;
   }
+
+  document.getElementById("readerBox").style.display = "none";
+  document.getElementById("scanFeedback").textContent = "Point camera at barcode or QR code";
 }
+
+
 
 /* ── MANUAL EDIT ── */
 function toggleEdit() {
