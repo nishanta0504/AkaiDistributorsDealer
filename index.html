@@ -1,501 +1,898 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta charset="UTF-8">
+<title>AKAI Distributors</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Noto+Sans:wght@400;600&display=swap');
 :root{
-  --bg:#0d1117;--surf:#161b22;--surf2:#1c2230;
-  --accent:#00c8ff;--green:#0af5a0;--red:#ff4d6d;
-  --text:#e6edf3;--muted:#8b949e;--border:#30363d;
+  --navy:#0d1b3e;--navy2:#162250;--blue:#1a56db;--blue2:#3b82f6;
+  --accent:#f59e0b;--green:#10b981;--red:#ef4444;--orange:#f97316;--white:#fff;
+  --border:#d1daf7;--text:#1e293b;--muted:#64748b;
+  --shadow:0 4px 24px rgba(13,27,62,.10);--r:14px;--rs:8px;
 }
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Noto Sans',sans-serif;background:var(--bg);color:var(--text);padding:12px;font-size:15px;}
-h2{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;text-align:center;
-   letter-spacing:3px;color:var(--accent);text-shadow:0 0 18px rgba(0,200,255,.4);
-   margin-bottom:12px;text-transform:uppercase;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow-x:hidden}
+body{font-family:'DM Sans',sans-serif;background:linear-gradient(135deg,#e8eeff 0%,#f4f7ff 60%,#fdf6e3 100%);min-height:100vh;color:var(--text);-webkit-tap-highlight-color:transparent}
 
-/* INPUTS */
-.row{display:flex;gap:8px;}
-.row input{flex:1;}
-input,select{
-  width:100%;padding:11px 13px;margin:5px 0;font-size:15px;
-  font-family:'Noto Sans',sans-serif;background:var(--surf);
-  border:1px solid var(--border);border-radius:8px;color:var(--text);outline:none;
+/* ── HEADER ── */
+.header{background:linear-gradient(120deg,var(--navy) 0%,var(--navy2) 100%);padding:12px 14px 10px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(13,27,62,.25);position:sticky;top:0;z-index:200;min-height:56px;}
+.header-logo{width:38px;height:38px;min-width:38px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:var(--navy);flex-shrink:0;line-height:1;text-align:center;}
+.header-text{flex:1;min-width:0}
+.header-text h1{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:#fff;letter-spacing:0.3px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.header-text p{font-size:10px;color:rgba(255,255,255,.5);font-weight:400;letter-spacing:.6px;text-transform:uppercase;margin-top:1px}
+.header-date{flex-shrink:0;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:3px 9px;font-size:10px;color:rgba(255,255,255,.7);font-weight:500;white-space:nowrap;}
+
+/* ── CACHE STATUS BAR ── */
+#cacheBar{background:var(--navy2);padding:4px 14px;font-size:10px;text-align:center;font-weight:500;transition:.3s}
+#cacheBar.loading{color:var(--accent)}
+#cacheBar.ready{color:rgba(16,185,129,.9)}
+#cacheBar.error{color:#f87171}
+
+/* ── STEPPER ── */
+.stepper{display:flex;align-items:center;justify-content:center;background:var(--navy2);padding:7px 16px 9px;gap:0;}
+.step{display:flex;align-items:center;gap:6px;cursor:pointer}
+.step-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;border:2px solid rgba(255,255,255,.25);color:rgba(255,255,255,.4);transition:.25s;flex-shrink:0;}
+.step-label{font-size:11px;color:rgba(255,255,255,.4);font-weight:500;transition:.25s;white-space:nowrap}
+.step.active .step-num{background:var(--accent);border-color:var(--accent);color:var(--navy)}
+.step.active .step-label{color:#fff}
+.step.done .step-num{background:var(--green);border-color:var(--green);color:#fff}
+.step.done .step-label{color:rgba(255,255,255,.7)}
+.step-line{flex:1;height:2px;background:rgba(255,255,255,.15);margin:0 8px;max-width:60px}
+
+/* ── CONTAINER ── */
+.container{padding:14px;max-width:560px;margin:0 auto}
+
+/* ── PAGE VIEWS ── */
+.page{display:none;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── CARDS ── */
+.card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);padding:14px;margin-bottom:12px;border:1px solid rgba(209,218,247,.5)}
+.card-title{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.1px;margin-bottom:11px;display:flex;align-items:center;gap:6px;}
+.card-title::before{content:'';display:inline-block;width:3px;height:13px;background:var(--blue);border-radius:2px}
+
+/* ── INPUTS ── */
+.row{display:flex;gap:10px}
+.row .field{flex:1}
+.field{margin-bottom:9px}
+.field label{display:block;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px}
+input[type="text"],input[type="date"],input[list],select{width:100%;padding:11px 12px;font-size:14px;font-family:'DM Sans',sans-serif;border:1.5px solid var(--border);border-radius:var(--rs);background:#f8faff;color:var(--text);transition:border .18s,box-shadow .18s;outline:none;appearance:none;-webkit-appearance:none;}
+input:focus,select:focus{border-color:var(--blue2);box-shadow:0 0 0 3px rgba(59,130,246,.12);background:#fff}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:30px;}
+
+/* ── BUTTONS ── */
+.btn-row{display:flex;gap:8px;margin-bottom:6px}
+.btn-row .btn{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;border:none;border-radius:var(--rs);cursor:pointer;transition:transform .1s,box-shadow .12s,opacity .18s;text-align:center;white-space:nowrap;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.btn:active{transform:scale(.96)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;box-shadow:0 3px 12px rgba(26,86,219,.28)}
+.btn-accent{background:linear-gradient(135deg,var(--accent),#f97316);color:var(--navy);box-shadow:0 3px 12px rgba(245,158,11,.28)}
+.btn-success{background:linear-gradient(135deg,#059669,var(--green));color:#fff;box-shadow:0 3px 12px rgba(16,185,129,.28)}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text)}
+.btn-outline:active{border-color:var(--blue2);color:var(--blue);background:#f0f4ff}
+.btn-danger{background:var(--red);color:#fff}
+.btn-nav{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;box-shadow:0 3px 12px rgba(79,70,229,.3)}
+.btn-sm{padding:7px 10px;font-size:12px;border-radius:6px}
+
+/* ── SCANNER ── */
+#readerBox{display:none;border-radius:var(--r);overflow:hidden;background:var(--navy);margin-bottom:12px;}
+.scanner-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 0}
+.scanner-hdr span{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px}
+.pulse-dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+#closeScan{background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#closeScan:active{background:var(--red)}
+#reader{width:100%}
+/* Override html5-qrcode internal box to look like a wide barcode scanner */
+#reader video { border-radius:0 !important; }
+.scan-tip{
+  text-align:center;padding:4px 12px 0;
+  font-size:10px;color:rgba(255,255,255,.45);
+  letter-spacing:.3px;
 }
-input:focus,select:focus{border-color:var(--accent);}
-input::placeholder{color:var(--muted);}
-option{background:var(--surf2);}
+.scan-tip b{color:var(--accent)}
+.scan-fb{text-align:center;padding:4px 12px 8px;font-size:12px;color:rgba(255,255,255,.65);min-height:30px;transition:.15s}
 
-/* BUTTONS */
-.btn-row{display:flex;gap:8px;margin:7px 0;}
-button{
-  flex:1;padding:11px 6px;font-size:14px;
-  font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;
-  border:none;border-radius:8px;background:var(--accent);color:#000;cursor:pointer;
-  text-transform:uppercase;transition:transform .1s,opacity .15s;
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto;border-radius:var(--rs);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:linear-gradient(90deg,#e8eeff,#f0f4ff)}
+th{padding:9px 10px;text-align:center;font-family:'Syne',sans-serif;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid var(--border)}
+td{padding:8px 10px;text-align:center;border-bottom:1px solid #eef1fb;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+.tfoot-row{background:linear-gradient(90deg,#dbeafe,#eff6ff)}
+.tfoot-row td{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--navy);border-top:2px solid var(--border)}
+td input[type="number"],td input[type="text"]{width:68px;padding:5px 6px;font-size:12px;border:1.5px solid var(--border);border-radius:5px;background:#fff;text-align:center}
+.item-badge{display:inline-flex;align-items:center;background:var(--blue);color:#fff;border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700;margin-left:7px}
+.empty-state{text-align:center;padding:24px 16px;color:var(--muted)}
+.empty-state p{font-size:12px;margin-top:6px}
+.status-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.status-label{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:5px}
+
+/* ── QTY EXCEEDED BADGE ── */
+.exceeded-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);
+  color:var(--red);border-radius:20px;padding:1px 8px;
+  font-size:10px;font-weight:700;margin-left:5px;
+  white-space:nowrap;
 }
-button:active{transform:scale(.97);opacity:.85;}
-button.red{background:var(--red);color:#fff;}
-button.grey{background:var(--surf2);color:var(--text);border:1px solid var(--border);}
-button.grn{background:var(--green);color:#000;}
+.exceeded-row td{background:rgba(239,68,68,.03)}
 
-/* SCANNER */
-#scanBox{
-  display:none;background:var(--surf);border:1px solid var(--border);
-  border-radius:10px;padding:10px;margin:8px 0;
+/* ── ALREADY FILLED BADGE ── */
+.filled-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);
+  color:#b45309;border-radius:20px;padding:1px 8px;
+  font-size:10px;font-weight:700;margin-left:5px;
+  white-space:nowrap;
 }
-#reader{width:100%;max-width:300px;margin:0 auto;}
-/* hide html5-qrcode default UI clutter */
-#reader img,#reader select,#reader button{display:none!important;}
-#reader video{border-radius:8px;border:2px solid var(--accent);width:100%!important;height:auto!important;}
-#scanStatus{
-  font-family:'Rajdhani',sans-serif;font-size:14px;color:var(--green);
-  text-align:center;margin-top:6px;min-height:20px;letter-spacing:1px;
-}
-#scanFlash{
-  display:none;position:fixed;inset:0;background:rgba(0,200,255,.13);
-  z-index:999;pointer-events:none;
-}
+.filled-row td{background:rgba(245,158,11,.03)}
 
-/* TABLE */
-.tbl-wrap{background:var(--surf);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:10px;}
-table{width:100%;border-collapse:collapse;}
-thead{background:var(--surf2);}
-th{padding:9px 6px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;
-   font-size:13px;color:var(--accent);text-transform:uppercase;}
-td{padding:8px 6px;text-align:center;font-size:14px;border-top:1px solid var(--border);}
-tfoot td{background:var(--surf2);font-family:'Rajdhani',sans-serif;font-weight:700;
-         font-size:16px;color:var(--green);border-top:2px solid var(--border);}
-table input{width:76px;padding:5px;margin:0;font-size:13px;border-radius:6px;text-align:center;}
-.del-btn{background:var(--red);padding:5px 9px;font-size:13px;border-radius:6px;color:#fff;}
-@keyframes rowPop{0%{background:rgba(0,200,255,.2);}100%{background:transparent;}}
-.newrow td{animation:rowPop .35s ease;}
+/* ── CAMERA ── */
+#cameraBox{display:none;text-align:center;background:var(--navy);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.cam-title{color:#fff;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;margin-bottom:10px}
+#video{border-radius:10px;border:2px solid rgba(255,255,255,.2);width:100%;max-width:300px}
+#canvas{display:none}
+#preview{margin-top:10px}
+#preview img{border-radius:10px;border:3px solid var(--green);max-width:180px}
+.cam-btns{display:flex;gap:8px;justify-content:center;margin-top:10px}
 
-/* CAMERA */
-#camBox{display:none;background:var(--surf);border:1px solid var(--border);
-        border-radius:10px;padding:12px;margin:8px 0;text-align:center;}
-#camVid{width:160px;height:120px;border-radius:8px;border:2px solid var(--accent);}
-#preview img{border-radius:8px;margin-top:8px;border:2px solid var(--green);}
+/* ── PROCESSING OVERLAY ── */
+#processingOverlay{display:none;position:fixed;inset:0;background:rgba(13,27,62,.78);backdrop-filter:blur(4px);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+#processingOverlay.active{display:flex}
+.spinner{width:50px;height:50px;border:4px solid rgba(255,255,255,.15);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.processing-text{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:#fff}
+.processing-sub{font-size:11px;color:rgba(255,255,255,.5)}
 
-/* BILL (hidden, for screenshot) */
-#bill{display:none;background:#fff;color:#000;padding:20px;font-size:14px;}
-.act{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+/* ── TOASTS ── */
+.toast-container{position:fixed;top:70px;right:12px;z-index:10000;display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.toast{background:#fff;border-radius:var(--rs);box-shadow:0 6px 20px rgba(0,0,0,.13);padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;border-left:4px solid var(--blue);animation:slideIn .22s ease;max-width:265px;}
+.toast.success{border-color:var(--green)}
+.toast.error{border-color:var(--red)}
+.toast.warning{border-color:var(--accent)}
+@keyframes slideIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── SCAN FLASH ── */
+.scan-flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:999;transition:opacity .05s}
+.scan-flash.flash{opacity:.3}
+
+/* ── BILL (offscreen) ── */
+#bill{display:none;background:#fff;padding:24px;width:580px;position:fixed;left:-9999px;top:0}
+
+/* ── PHOTO CONFIRMED ── */
+.photo-confirmed{display:flex;align-items:center;gap:10px;background:rgba(16,185,129,.08);border:1.5px solid var(--green);border-radius:var(--rs);padding:10px 12px;margin-bottom:10px;}
+.photo-confirmed img{width:52px;height:40px;object-fit:cover;border-radius:6px;border:2px solid var(--green)}
+.photo-confirmed .pc-text{font-size:12px;color:#059669;font-weight:600}
+.photo-confirmed .pc-sub{font-size:11px;color:var(--muted);margin-top:1px}
 </style>
 </head>
 <body>
-<div id="scanFlash"></div>
-<h2>⚡ AKAI DISTRIBUTORS</h2>
 
-<div class="row">
-  <input id="challan" placeholder="Challan No">
-  <input type="date" id="date">
-</div>
-<select id="dealer">
-  <option value="">Select SO</option>
-  <option>SAMARENDRA CHANDRA SARKA</option>
-  <option>AJAY SINGHA</option>
-  <option>SOMEN DAS</option>
-  <option>CHANDAN DAS</option>
-</select>
-<input list="dealerList" id="dealerName" placeholder="Select Dealer">
-<datalist id="dealerList"></datalist>
-
-<div class="btn-row">
-  <button id="scanBtn" onclick="toggleScanner()">📷 Scan QR / Barcode</button>
-  <button class="grey" onclick="toggleEdit()">✏️ Manual Edit</button>
+<div id="processingOverlay">
+  <div class="spinner"></div>
+  <div class="processing-text">Submitting Data...</div>
+  <div class="processing-sub">Please wait, do not close this page</div>
 </div>
 
-<!-- SCANNER -->
-<div id="scanBox">
-  <div id="reader"></div>
-  <div id="scanStatus">Point camera at code…</div>
-  <div class="btn-row" style="margin-top:8px;">
-    <button class="red" onclick="stopScanner()">✖ Close Scanner</button>
+<div class="scan-flash" id="scanFlash"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo">AD</div>
+  <div class="header-text">
+    <h1>AKAI DISTRIBUTORS</h1>
+    <p>Approval Challan</p>
+  </div>
+  <div class="header-date" id="headerDate"></div>
+</div>
+
+<!-- CACHE STATUS -->
+<div id="cacheBar" class="loading">⏳ Loading product cache…</div>
+
+<!-- STEPPER -->
+<div class="stepper">
+  <div class="step active" id="step1tab" onclick="goPage(1)">
+    <div class="step-num">1</div>
+    <div class="step-label">Entry</div>
+  </div>
+  <div class="step-line"></div>
+  <div class="step" id="step2tab" onclick="goPage(2)">
+    <div class="step-num">2</div>
+    <div class="step-label">Confirm &amp; Submit</div>
   </div>
 </div>
 
-<!-- TABLE -->
-<div class="tbl-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Variant</th><th>Qty</th><th>MRP</th>
-        <th id="editHead" style="display:none;">Del</th>
-      </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-    <tfoot>
-      <tr><td>TOTAL</td><td id="tQty">0</td><td id="tMrp">0</td><td id="tExtra"></td></tr>
-    </tfoot>
-  </table>
-</div>
+<!-- ══════════════ PAGE 1 ══════════════ -->
+<div class="page active" id="page1">
+<div class="container">
 
-<div class="act">
-  <button class="grey" onclick="openCamera()">📸 Confirmation Photo</button>
-  <div id="camBox">
-    <video id="camVid" autoplay></video><br>
-    <div class="btn-row" style="margin-top:8px;">
-      <button class="grn" onclick="capturePhoto()">✅ Capture</button>
-      <button class="grey" onclick="retakePhoto()">🔄 Retake</button>
+  <div class="card">
+    <div class="card-title">Order Details</div>
+    <div class="row">
+      <div class="field">
+        <label>Challan No.</label>
+        <input type="text" id="challan" placeholder="e.g. CH-2024">
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="date">
+      </div>
     </div>
-    <canvas id="canvas" width="150" height="120" style="display:none;"></canvas>
-    <div id="preview"></div>
+    <div class="field">
+      <label>Sales Officer (SO)</label>
+      <select id="dealer">
+        <option value="">— Select SO —</option>
+        <option>SAMARENDRA CHANDRA SARKA</option>
+        <option>AJAY SINGHA</option>
+        <option>SOMEN DAS</option>
+        <option>CHANDAN DAS</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Dealer Name</label>
+      <input list="dealerList" id="dealerName" placeholder="Type to search dealer...">
+      <datalist id="dealerList"></datalist>
+    </div>
   </div>
-  <div class="btn-row">
-    <button onclick="downloadBill()">⬇ Download</button>
-    <button class="grn" onclick="submitData()">📤 Submit</button>
+
+  <div class="card">
+    <div class="card-title">Scan &amp; Entry</div>
+    <div class="btn-row">
+      <button class="btn btn-accent" onclick="openScanner()" id="scanBtn">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+        Scan QR
+      </button>
+      <button class="btn btn-outline" onclick="toggleEdit()" id="editBtn">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Manual
+      </button>
+    </div>
+
+    <div id="readerBox">
+      <div class="scanner-hdr">
+        <span><div class="pulse-dot"></div>Scanner Active</span>
+        <button id="closeScan" onclick="closeScanner()">×</button>
+      </div>
+      <div id="reader"></div>
+      <div class="scan-tip">QR code <b>or</b> long barcode — align inside the box &nbsp;|&nbsp; <b>Rotate phone sideways</b> for barcodes</div>
+      <div class="scan-fb" id="scanFeedback">Point camera at barcode or QR code</div>
+    </div>
   </div>
+
+  <div class="card">
+    <div class="status-bar">
+      <div class="status-label">Items<span class="item-badge" id="itemCount">0</span></div>
+      <div style="font-size:11px;color:var(--muted)">Total Qty: <b id="tQtyTop">0</b></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left">Variant</th>
+            <th>Qty</th>
+            <th>MRP ₹</th>
+            <th id="editHead" style="display:none">Act</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="4"><div class="empty-state"><svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><p>No items yet.<br>Scan QR or add manually.</p></div></td></tr>
+        </tbody>
+        <tfoot>
+          <tr class="tfoot-row">
+            <td><b>TOTAL</b></td>
+            <td id="tQty">0</td>
+            <td id="tMrp">₹0</td>
+            <td id="tActionFoot" style="display:none"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="padding:12px">
+    <button class="btn btn-nav" style="width:100%;padding:13px;font-size:14px" onclick="goToPage2()">
+      Next: Confirmation &amp; Submit
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ PAGE 2 ══════════════ -->
+<div class="page" id="page2">
+<div class="container">
+
+  <div class="card">
+    <div class="card-title">Order Summary</div>
+    <div id="summaryBox"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Confirmation Photo</div>
+    <div id="photoConfirmedBox" style="display:none"></div>
+    <button class="btn btn-outline" onclick="openCamera()" style="width:100%;margin-bottom:8px" id="openCamBtn">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Open Camera
+    </button>
+    <div id="cameraBox">
+      <div class="cam-title">📷 Live Camera</div>
+      <video id="video" autoplay playsinline></video>
+      <div class="cam-btns">
+        <button class="btn btn-success btn-sm" onclick="capturePhoto()">📸 Capture</button>
+        <button class="btn btn-outline btn-sm" onclick="retakePhoto()">🔄 Retake</button>
+      </div>
+      <canvas id="canvas"></canvas>
+      <div id="preview"></div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:12px">
+    <button class="btn btn-success" style="width:100%;padding:13px;font-size:15px" onclick="submitData()" id="submitBtn">
+      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+      Submit &amp; Download
+    </button>
+    <div style="text-align:center;margin-top:7px;font-size:11px;color:var(--muted)">Matched items download as challan. Items with exceeded qty stay on screen.</div>
+  </div>
+
+  <div class="card" style="padding:12px">
+    <button class="btn btn-outline" style="width:100%;padding:12px" onclick="goPage(1)">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      Back to Entry
+    </button>
+  </div>
+
+</div>
 </div>
 
 <div id="bill"></div>
 
 <script>
-/* ════════════════════════════════
-   CONFIG
-════════════════════════════════ */
+/* ══════════════════════════════════════════════════════
+   BILL NUMBER CONFIG
+   Change BILL_NUMBER_OFFSET to shift numbers up or down.
+   Example: set 1000 to jump from 1001 → 2001
+   ══════════════════════════════════════════════════════ */
+const BILL_NUMBER_OFFSET = 0;
+
 const API_URL = "https://script.google.com/macros/s/AKfycbxN1ueHxR9seDLWBPOQffVkYOFInQpexU6W8-wJIJ-Nl82CtgjSBf6Q-gB-517orI_k/exec";
 
-/* ════════════════════════════════
-   STATE
-════════════════════════════════ */
-let items      = {};
-let manualMode = false;
-let photoData  = "";
-let camStream  = null;
+/* ── STATE ── */
+let items        = {};   // { variantName: {variant, qty, mrp, exceeded} }
+let scanner      = null;
+let scanning     = false;
+let manualMode   = false;
+let scanLock     = false;
+let photoData    = "";
+let stream       = null;
+let currentPage  = 1;
 
-let scanner    = null;
-let scanActive = false;
+/* ══════════════════════════════════════════════════════
+   LOCAL CACHE  ← KEY CHANGE FOR INSTANT SCAN
+   The entire Stock Sheet is loaded once on startup into
+   stockCache: { uid → { variant, mrp } }
+   QR scan then does an instant in-memory lookup — zero
+   network round-trip per scan.
+   ══════════════════════════════════════════════════════ */
+let stockCache     = {};   // uid → { variant, mrp }
+let cacheReady     = false;
+let cacheLoadFail  = false;
 
-/* dedupe: same code ignored for 2 s */
-const seen     = new Map();
-const DEDUPE   = 2000;
-const inFlight = new Set();
+function loadStockCache() {
+  const bar = document.getElementById("cacheBar");
+  bar.className = "loading";
+  bar.textContent = "⏳ Loading product cache…";
 
-/* beep */
-const beep = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-
-/* ════════════════════════════════
-   DEALERS
-════════════════════════════════ */
-window.onload = function() {
-  const today = new Date().toISOString().split("T")[0];
-  document.getElementById("date").value = today;
-
-  fetch(API_URL + "?type=dealers")
-    .then(r => r.json())
-    .then(list => {
-      const dl = document.getElementById("dealerList");
-      dl.innerHTML = "";
-      list.forEach(d => {
-        const o = document.createElement("option");
-        o.value = d; dl.appendChild(o);
-      });
-    }).catch(() => {});
-};
-
-/* ════════════════════════════════
-   SCANNER  (html5-qrcode)
-════════════════════════════════ */
-function toggleScanner() {
-  if (scanActive) { stopScanner(); return; }
-  document.getElementById("scanBox").style.display = "block";
-  document.getElementById("scanBtn").textContent   = "⏹ Stop Scanner";
-
-  scanner = new Html5Qrcode("reader");
-
-  const config = {
-    fps: 60,
-    qrbox: { width: 250, height: 250 },
-    aspectRatio: 1.0,
-    disableFlip: false,
-    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-    formatsToSupport: [
-      Html5QrcodeSupportedFormats.QR_CODE,
-      Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.CODE_39,
-      Html5QrcodeSupportedFormats.DATA_MATRIX
-    
-    ]
-  };
-
-  scanner.start(
-    { facingMode: "environment" },
-    config,
-    onScanSuccess,
-    () => {}   /* silent on no-read */
-  ).then(() => {
-    scanActive = true;
-    document.getElementById("scanStatus").textContent = "📷 Scanning…";
-  }).catch(err => {
-    alert("Camera error: " + err);
-    stopScanner();
-  });
-}
-
-function stopScanner() {
-  if (scanner && scanActive) {
-    scanner.stop().then(() => {
-      scanner.clear();
-      scanner    = null;
-      scanActive = false;
-      document.getElementById("scanBox").style.display = "none";
-      document.getElementById("scanBtn").textContent   = "📷 Scan QR / Barcode";
-      document.getElementById("scanStatus").textContent = "Point camera at code…";
-    }).catch(() => {});
-  } else {
-    document.getElementById("scanBox").style.display = "none";
-    document.getElementById("scanBtn").textContent   = "📷 Scan QR / Barcode";
-    scanActive = false;
-  }
-}
-
-function onScanSuccess(rawValue) {
-  let code = rawValue.trim().replace(/\s/g,"").replace(/\/\/(1|5|10)/g,"");
-  if (!code) return;
-
-  const now = Date.now();
-  if (seen.has(code) && now - seen.get(code) < DEDUPE) return;
-  seen.set(code, now);
-
-  /* clean old entries */
-  seen.forEach((t,k) => { if (now - t > DEDUPE * 4) seen.delete(k); });
-
-  if (inFlight.has(code)) return;
-
-  /* INSTANT feedback */
-  beep.currentTime = 0;
-  beep.play().catch(()=>{});
-  flashScreen();
-  document.getElementById("scanStatus").textContent = "⏳ Looking up: " + code.slice(-16);
-
-  inFlight.add(code);
-
-  fetch(API_URL + "?uid=" + encodeURIComponent(code))
+  fetch(API_URL + "?type=stockcache")
     .then(r => r.json())
     .then(data => {
-      inFlight.delete(code);
-
-      if (!data.variant) {
-        document.getElementById("scanStatus").textContent = "❌ Not found: " + code.slice(-14);
-        return;
+      stockCache = {};
+      if (Array.isArray(data)) {
+        data.forEach(row => {
+          if (row.uid) stockCache[String(row.uid).trim()] = { variant: row.variant || "", mrp: Number(row.mrp) || 0 };
+        });
       }
-
-      const k = data.variant;
-      if (!items[k]) {
-        items[k] = { variant: k, qty: 1, mrp: Number(data.mrp) || 0, _new: true };
-      } else {
-        items[k].qty++;
-        items[k]._new = true;
-      }
-
-      document.getElementById("scanStatus").textContent = "✅ " + k + "  ×" + items[k].qty;
-      render();
+      cacheReady = true;
+      const count = Object.keys(stockCache).length;
+      bar.className = "ready";
+      bar.textContent = `✅ ${count} products loaded — scanner ready`;
+      setTimeout(() => { bar.style.display = "none"; }, 3000);
     })
     .catch(() => {
-      inFlight.delete(code);
-      document.getElementById("scanStatus").textContent = "⚠ Network error – retry";
+      cacheLoadFail = true;
+      bar.className = "error";
+      bar.textContent = "⚠ Cache load failed — will use live lookup per scan";
+      setTimeout(() => { bar.style.display = "none"; }, 4000);
     });
 }
 
-function flashScreen() {
-  const f = document.getElementById("scanFlash");
-  f.style.display = "block";
-  setTimeout(() => f.style.display = "none", 120);
+/* Lookup from cache, fallback to network if cache not ready */
+function lookupUID(uid) {
+  const key = String(uid).trim();
+  if (cacheReady && stockCache[key]) {
+    return Promise.resolve(stockCache[key]);
+  }
+  // fallback (cache miss or not loaded yet)
+  return fetch(API_URL + "?uid=" + encodeURIComponent(uid))
+    .then(r => r.json())
+    .then(d => d.variant ? d : null);
 }
 
-/* ════════════════════════════════
-   TABLE
-════════════════════════════════ */
+/* ── SCANNER BEEP (realistic barcode scanner chirp) ──
+   Two-tone sweep: low→high in ~80ms, same as handheld scanners.
+   No file load, instant, works offline.                        */
+const beep = (() => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return () => {
+      try {
+        const t   = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const env = ctx.createGain();
+        osc.connect(env);
+        env.connect(ctx.destination);
+
+        // Frequency sweep: 1200 Hz → 1800 Hz over 80ms (scanner chirp)
+        osc.type = "square";
+        osc.frequency.setValueAtTime(1200, t);
+        osc.frequency.linearRampToValueAtTime(1800, t + 0.08);
+
+        // Volume envelope: sharp attack, quick decay
+        env.gain.setValueAtTime(0, t);
+        env.gain.linearRampToValueAtTime(0.22, t + 0.005);
+        env.gain.setValueAtTime(0.22, t + 0.06);
+        env.gain.linearRampToValueAtTime(0, t + 0.1);
+
+        osc.start(t);
+        osc.stop(t + 0.1);
+      } catch(e){}
+    };
+  } catch(e){ return () => {}; }
+})();
+
+/* ── INIT ── */
+window.onload = function() {
+  const today = new Date();
+  document.getElementById("date").value = today.toISOString().split("T")[0];
+  document.getElementById("headerDate").textContent =
+    today.toLocaleDateString("en-IN", { day:"2-digit", month:"short" });
+  loadDealers();
+  loadStockCache();   // ← preload cache on startup
+};
+
+/* ── DEALERS ── */
+function loadDealers() {
+  fetch(API_URL + "?type=dealers")
+    .then(r => r.json())
+    .then(data => {
+      const list = document.getElementById("dealerList");
+      list.innerHTML = "";
+      data.forEach(d => { const o = document.createElement("option"); o.value = d; list.appendChild(o); });
+    }).catch(() => {});
+}
+
+/* ── TOAST ── */
+function showToast(msg, type="info", dur=2600) {
+  const icons = { success:"✅", error:"❌", warning:"⚠️", info:"ℹ️" };
+  const c = document.getElementById("toastContainer");
+  const t = document.createElement("div");
+  t.className = "toast " + type;
+  t.innerHTML = `<span>${icons[type]||"•"}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.cssText="opacity:0;transition:opacity .25s"; setTimeout(()=>t.remove(),260); }, dur);
+}
+
+/* ── PAGE NAV ── */
+function goPage(n) {
+  currentPage = n;
+  document.getElementById("page1").classList.toggle("active", n===1);
+  document.getElementById("page2").classList.toggle("active", n===2);
+  document.getElementById("step1tab").className = "step" + (n===1?" active": n>1?" done":"");
+  document.getElementById("step2tab").className = "step" + (n===2?" active":"");
+  if (n===2) refreshSummary();
+  window.scrollTo(0, 0);
+}
+
+function goToPage2() {
+  if (!document.getElementById("challan").value.trim()) { showToast("Enter Challan No.","error"); return; }
+  if (!document.getElementById("dealer").value)          { showToast("Select Sales Officer","error"); return; }
+  if (!document.getElementById("date").value)            { showToast("Select Date","error"); return; }
+  if (!document.getElementById("dealerName").value.trim()){ showToast("Enter Dealer Name","error"); return; }
+  if (Object.keys(items).length === 0)                   { showToast("Add at least one item","error"); return; }
+  goPage(2);
+}
+
+function refreshSummary() {
+  const ch=document.getElementById("challan").value, so=document.getElementById("dealer").value;
+  const dn=document.getElementById("dealerName").value, dt=document.getElementById("date").value;
+  let tq=0,tm=0;
+  Object.values(items).forEach(i=>{ tq+=Number(i.qty)||0; tm+=(Number(i.qty)||0)*(Number(i.mrp)||0); });
+  document.getElementById("summaryBox").innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
+      <div style="background:#f8faff;border-radius:8px;padding:10px;border:1px solid #d1daf7"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Challan</div><div style="font-weight:700;font-size:13px">${ch}</div></div>
+      <div style="background:#f8faff;border-radius:8px;padding:10px;border:1px solid #d1daf7"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Date</div><div style="font-weight:700;font-size:13px">${dt}</div></div>
+      <div style="background:#f8faff;border-radius:8px;padding:10px;border:1px solid #d1daf7"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">SO</div><div style="font-weight:700;font-size:13px">${so}</div></div>
+      <div style="background:#f8faff;border-radius:8px;padding:10px;border:1px solid #d1daf7"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Dealer</div><div style="font-weight:700;font-size:13px">${dn}</div></div>
+    </div>
+    <div style="background:linear-gradient(90deg,#dbeafe,#eff6ff);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;margin-top:6px;border:1px solid #bfdbfe">
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:var(--navy)">${Object.keys(items).length} VARIANTS</span>
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--navy)">Qty: ${tq} &nbsp;|&nbsp; ₹${tm.toLocaleString("en-IN")}</span>
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════════════
+   SCANNER — supports BOTH QR codes AND 1D barcodes
+   (Code128, Code39, EAN, ITF, etc.)
+
+   KEY SETTINGS FOR 1D BARCODES:
+   • Wide rectangular qrbox (280 × 100) so long barcodes fit
+   • aspectRatio: 1.8 → camera fills width, great for landscape
+   • formatsToSupport lists every common 1D + QR format
+   • useBarCodeDetectorIfSupported → uses phone's native
+     BarcodeDetector API (Chrome/Samsung) which is fastest
+   • fps: 30 for maximum responsiveness
+   • User hint shown to hold phone horizontally for barcodes
+   ══════════════════════════════════════════════════════ */
+function openScanner() {
+  document.getElementById("readerBox").style.display = "block";
+  if (scanning) return;
+
+  // Build format list: all 1D types + QR
+  const formats = [];
+  try {
+    const F = Html5QrcodeSupportedFormats;
+    const wanted = [
+      "QR_CODE","CODE_128","CODE_39","CODE_93",
+      "EAN_13","EAN_8","UPC_A","UPC_E",
+      "ITF","CODABAR","DATA_MATRIX","PDF_417","AZTEC"
+    ];
+    wanted.forEach(name => { if (F[name] !== undefined) formats.push(F[name]); });
+  } catch(e) {}
+
+  const cfg = { verbose: false };
+  if (formats.length > 0) cfg.formatsToSupport = formats;
+
+  scanner = new Html5Qrcode("reader", cfg);
+
+  // Responsive box: wide rectangle for 1D barcodes, fits QR too
+  const vw      = Math.min(window.innerWidth, 560);
+  const boxW    = Math.min(vw - 40, 300);
+  const boxH    = Math.round(boxW * 0.38);   // ~38% height = ideal for Code128
+
+  scanner.start(
+    { facingMode: "environment" },
+    {
+      fps: 30,
+      qrbox:        { width: boxW, height: boxH },
+      aspectRatio:  1.78,        // 16:9 — wider camera, great for long barcodes
+      disableFlip:  false,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    },
+    scannedCode => {
+      if (scanLock) return;
+      scanLock = true;
+
+      // Instant feedback
+      const flash = document.getElementById("scanFlash");
+      flash.classList.add("flash");
+      setTimeout(() => flash.classList.remove("flash"), 110);
+      beep();
+
+      const fb = document.getElementById("scanFeedback");
+      fb.textContent = "🔍 " + scannedCode.substring(0, 22) + "…";
+
+      lookupUID(scannedCode)
+        .then(data => {
+          if (!data || !data.variant) {
+            showToast("Not found: " + scannedCode.substring(0, 16), "error");
+            fb.textContent = "❌ Not found — try again";
+          } else {
+            if (!items[data.variant]) {
+              items[data.variant] = { variant: data.variant, qty: 1, mrp: Number(data.mrp)||0, exceeded: false, alreadyFull: false };
+            } else {
+              items[data.variant].qty++;
+            }
+            render();
+            fb.textContent = "✅ " + data.variant + "  ×" + items[data.variant].qty;
+            showToast(data.variant + " ×" + items[data.variant].qty, "success", 1600);
+          }
+        })
+        .catch(() => { showToast("Lookup error","error"); fb.textContent = "❌ Error"; })
+        .finally(() => { setTimeout(() => { scanLock = false; }, 900); });
+    },
+    () => {}
+  );
+  scanning = true;
+}
+
+function closeScanner() {
+  if (scanner && scanning) {
+    scanner.stop()
+      .then(() => { scanning = false; document.getElementById("readerBox").style.display = "none"; })
+      .catch(() => { scanning = false; document.getElementById("readerBox").style.display = "none"; });
+  }
+}
+
+/* ── MANUAL EDIT ── */
 function toggleEdit() {
   manualMode = !manualMode;
   document.getElementById("editHead").style.display = manualMode ? "" : "none";
-  document.getElementById("tExtra").style.display   = manualMode ? "" : "none";
+  document.getElementById("tActionFoot").style.display = manualMode ? "" : "none";
+  document.getElementById("editBtn").innerHTML = manualMode
+    ? `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg> Lock`
+    : `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Manual`;
   render();
 }
 
+/* ── RENDER TABLE ── */
 function render() {
-  let html = "", tq = 0, tm = 0;
+  const keys = Object.keys(items);
+  document.getElementById("itemCount").textContent = keys.length;
 
-  Object.keys(items).forEach(key => {
-    const i   = items[key];
-    const qty = Number(i.qty) || 0;
-    const mrp = Number(i.mrp) || 0;
-    tq += qty; tm += qty * mrp;
-
-    const nc = i._new ? ' class="newrow"' : "";
-    i._new = false;
-
-    if (manualMode) {
-      html += `<tr${nc}>
-        <td><input value="${i.variant}" onchange="items['${key}'].variant=this.value"></td>
-        <td><input type="number" value="${qty}" onchange="items['${key}'].qty=+this.value;render()"></td>
-        <td><input type="number" value="${mrp}" onchange="items['${key}'].mrp=+this.value;render()"></td>
-        <td><button class="del-btn" onclick="removeItem('${key}')">✖</button></td>
-      </tr>`;
-    } else {
-      html += `<tr${nc}>
-        <td style="text-align:left;padding-left:10px;">${i.variant}</td>
-        <td>${qty}</td><td>${mrp}</td><td></td>
-      </tr>`;
-    }
-  });
-
-  if (manualMode) {
-    html += `<tr><td colspan="4" style="padding:6px;">
-      <button onclick="addItem()" style="padding:7px 10px;font-size:13px;">➕ Add Item</button>
-    </td></tr>`;
+  if (keys.length === 0) {
+    document.getElementById("tbody").innerHTML = `<tr><td colspan="4"><div class="empty-state"><svg width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><p>No items yet.<br>Scan QR or add manually.</p></div></td></tr>`;
+    document.getElementById("tQty").textContent = "0";
+    document.getElementById("tMrp").textContent = "₹0";
+    document.getElementById("tQtyTop").textContent = "0";
+    return;
   }
 
-  document.getElementById("tbody").innerHTML  = html;
+  let html = "", tq = 0, tm = 0;
+  keys.forEach(key => {
+    const i = items[key];
+    const q = Number(i.qty) || 0;
+    const m = Number(i.mrp) || 0;
+    tq += q; tm += q * m;
+
+    const excBadge = i.exceeded
+      ? `<span class="exceeded-badge">⚠ Qty Exceeded</span>` : "";
+    const filledBadge = i.alreadyFull
+      ? `<span class="filled-badge">🔒 Already Filled</span>` : "";
+    const rowClass = i.exceeded ? "exceeded-row" : i.alreadyFull ? "filled-row" : "";
+
+    html += `<tr class="${rowClass}">
+      <td style="text-align:left;font-weight:500;font-size:12px">
+        ${manualMode ? `<input type="text" value="${i.variant}" style="width:100%;text-align:left" onchange="items['${key}'].variant=this.value">` : i.variant}
+        ${!manualMode ? excBadge + filledBadge : ""}
+      </td>
+      <td>${manualMode ? `<input type="number" value="${q}" onchange="items['${key}'].qty=Number(this.value);render()">` : `<b>${q}</b>`}</td>
+      <td>${manualMode ? `<input type="number" value="${m}" onchange="items['${key}'].mrp=Number(this.value);render()">` : `₹${m}`}</td>
+      ${manualMode ? `<td><button class="btn btn-danger btn-sm" onclick="removeItem('${key}')">✕</button></td>` : `<td></td>`}
+    </tr>`;
+  });
+
+  if (manualMode) html += `<tr><td colspan="4" style="padding:6px"><button class="btn btn-outline btn-sm" style="width:100%" onclick="addItem()">＋ Add Item</button></td></tr>`;
+
+  document.getElementById("tbody").innerHTML = html;
   document.getElementById("tQty").textContent = tq;
-  document.getElementById("tMrp").textContent = tm;
+  document.getElementById("tMrp").textContent = "₹" + tm.toLocaleString("en-IN");
+  document.getElementById("tQtyTop").textContent = tq;
 }
 
 function addItem() {
-  const name = prompt("Enter Variant Name");
-  if (!name) return;
-  items[name] = { variant: name, qty: 1, mrp: 0, _new: true };
+  const n = prompt("Variant Name:");
+  if (!n) return;
+  items[n.trim()] = { variant: n.trim(), qty: 1, mrp: 0, exceeded: false };
   render();
 }
-
 function removeItem(k) { delete items[k]; render(); }
 
-/* ════════════════════════════════
-   VALIDATION
-════════════════════════════════ */
+/* ── VALIDATION ── */
 function checkFields() {
-  if (!document.getElementById("challan").value ||
-      !document.getElementById("dealer").value  ||
-      !document.getElementById("date").value) {
-    alert("Enter Challan No, SO, and Date"); return false;
-  }
-  if (!document.getElementById("dealerName").value) {
-    alert("Select a Dealer"); return false;
-  }
-  if (!photoData) {
-    alert("Please capture a Confirmation Photo first"); return false;
-  }
+  if (!document.getElementById("challan").value.trim())  { showToast("Enter Challan No.","error"); return false; }
+  if (!document.getElementById("dealer").value)           { showToast("Select Sales Officer","error"); return false; }
+  if (!document.getElementById("date").value)             { showToast("Select Date","error"); return false; }
+  if (!document.getElementById("dealerName").value.trim()){ showToast("Enter Dealer Name","error"); return false; }
+  if (!photoData)                                         { showToast("Capture confirmation photo","error"); return false; }
+  if (Object.keys(items).length === 0)                    { showToast("No items to submit","error"); return false; }
   return true;
 }
 
-/* ════════════════════════════════
-   CONFIRMATION CAMERA
-════════════════════════════════ */
+/* ── CAMERA ── */
 function openCamera() {
-  navigator.mediaDevices.getUserMedia({ video: { facingMode:"environment" } })
+  navigator.mediaDevices.getUserMedia({ video: { facingMode:"environment", width:{ideal:1280}, height:{ideal:720} } })
     .then(s => {
-      camStream = s;
-      document.getElementById("camBox").style.display  = "block";
-      document.getElementById("camVid").srcObject = s;
-    }).catch(e => alert("Camera error: " + e.message));
+      stream = s;
+      document.getElementById("cameraBox").style.display = "block";
+      document.getElementById("video").srcObject = s;
+    })
+    .catch(() => showToast("Camera access denied","error"));
 }
-
 function capturePhoto() {
-  const cv = document.getElementById("canvas");
-  cv.getContext("2d").drawImage(document.getElementById("camVid"), 0, 0, 150, 120);
-  photoData = cv.toDataURL("image/jpeg");
-  camStream.getTracks().forEach(t => t.stop());
-  document.getElementById("camVid").srcObject = null;
-  document.getElementById("preview").innerHTML = `<img src="${photoData}" width="120">`;
+  const canvas = document.getElementById("canvas"), video = document.getElementById("video");
+  canvas.width = video.videoWidth || 320; canvas.height = video.videoHeight || 240;
+  canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+  photoData = canvas.toDataURL("image/jpeg", 0.82);
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  document.getElementById("video").srcObject = null;
+  document.getElementById("cameraBox").style.display = "none";
+  document.getElementById("preview").innerHTML = "";
+  document.getElementById("photoConfirmedBox").style.display = "flex";
+  document.getElementById("photoConfirmedBox").className = "photo-confirmed";
+  document.getElementById("photoConfirmedBox").innerHTML = `
+    <img src="${photoData}" alt="photo">
+    <div><div class="pc-text">✅ Photo Captured</div><div class="pc-sub">Tap Retake to change</div></div>
+    <button class="btn btn-outline btn-sm" onclick="retakePhoto()" style="margin-left:auto">Retake</button>`;
+  document.getElementById("openCamBtn").style.display = "none";
+  showToast("Photo captured!","success");
 }
-
 function retakePhoto() {
   photoData = "";
-  document.getElementById("preview").innerHTML = "";
+  document.getElementById("photoConfirmedBox").style.display = "none";
+  document.getElementById("openCamBtn").style.display = "flex";
   openCamera();
 }
 
-/* ════════════════════════════════
-   DOWNLOAD
-════════════════════════════════ */
-function downloadBill() {
-  if (!checkFields()) return;
-  let tq = 0, tm = 0;
+/* ── DOWNLOAD BILL ── */
+function downloadBill(matchedItems) {
+  const ch=document.getElementById("challan").value, so=document.getElementById("dealer").value;
+  const dn=document.getElementById("dealerName").value, dt=document.getElementById("date").value;
   const time = new Date().toLocaleTimeString("en-IN");
-
-  let html = `
-    <h2 style="text-align:center;font-family:sans-serif;">AKAI DISTRIBUTORS</h2>
-    <p><b>Challan:</b> ${document.getElementById("challan").value}</p>
-    <p><b>SO:</b> ${document.getElementById("dealer").value}</p>
-    <p><b>Dealer:</b> ${document.getElementById("dealerName").value}</p>
-    <p><b>Date:</b> ${document.getElementById("date").value} &nbsp; <b>Time:</b> ${time}</p>
-    <hr>
-    <table border="1" style="width:100%;border-collapse:collapse;">
-    <tr><th>Variant</th><th>Qty</th><th>MRP</th><th>Total</th></tr>`;
-
-  Object.values(items).forEach(i => {
-    tq += i.qty; tm += i.qty * i.mrp;
-    html += `<tr><td>${i.variant}</td><td>${i.qty}</td><td>${i.mrp}</td><td>${i.qty*i.mrp}</td></tr>`;
+  let tq=0,tm=0,rows="";
+  matchedItems.forEach(i=>{
+    tq+=Number(i.qty)||0; tm+=(Number(i.qty)||0)*(Number(i.mrp)||0);
+    rows+=`<tr><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:13px">${i.variant}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:13px">${i.qty}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;font-size:13px">₹${i.mrp}</td></tr>`;
   });
+  const html=`<div style="font-family:'DM Sans',Arial,sans-serif;background:#fff;padding:28px;width:540px">
+    <div style="background:linear-gradient(135deg,#0d1b3e,#162250);padding:18px 20px;border-radius:10px;margin-bottom:18px;display:flex;align-items:center;gap:12px">
+      <div style="background:#f59e0b;border-radius:7px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#0d1b3e;flex-shrink:0">AD</div>
+      <div>
+        <div style="font-size:17px;font-weight:800;color:#fff;letter-spacing:.3px">AKAI DISTRIBUTORS</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:1px">Approval Challan</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:#f8faff;border-radius:7px;padding:10px;border:1px solid #d1daf7"><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Challan No.</div><div style="font-weight:700;font-size:13px">${ch}</div></div>
+      <div style="background:#f8faff;border-radius:7px;padding:10px;border:1px solid #d1daf7"><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Date &amp; Time</div><div style="font-weight:700;font-size:13px">${dt} <span style="font-size:10px;color:#64748b">${time}</span></div></div>
+      <div style="background:#f8faff;border-radius:7px;padding:10px;border:1px solid #d1daf7"><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Sales Officer</div><div style="font-weight:700;font-size:13px">${so}</div></div>
+      <div style="background:#f8faff;border-radius:7px;padding:10px;border:1px solid #d1daf7"><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Dealer</div><div style="font-weight:700;font-size:13px">${dn}</div></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+      <thead><tr style="background:linear-gradient(90deg,#e8eeff,#f0f4ff)">
+        <th style="padding:9px 10px;text-align:left;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #d1daf7">Variant</th>
+        <th style="padding:9px 10px;text-align:center;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #d1daf7">Qty</th>
+        <th style="padding:9px 10px;text-align:right;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #d1daf7">MRP</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr style="background:linear-gradient(90deg,#dbeafe,#eff6ff)">
+        <td style="padding:9px 10px;font-weight:800;font-size:13px">TOTAL</td>
+        <td style="padding:9px 10px;text-align:center;font-weight:800;font-size:13px">${tq}</td>
+        <td style="padding:9px 10px;text-align:right;font-weight:800;font-size:13px">₹${tm.toLocaleString("en-IN")}</td>
+      </tr></tfoot>
+    </table>
+    ${photoData?`<div style="margin-top:14px;text-align:center"><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px">Confirmation Photo</div><img src="${photoData}" style="max-width:140px;border-radius:7px;border:2px solid #10b981"></div>`:""}
+    <div style="margin-top:14px;text-align:center;font-size:9px;color:#94a3b8">AKAI Distributors — Approval Challan System</div>
+  </div>`;
 
-  html += `<tr><td><b>Total</b></td><td><b>${tq}</b></td><td></td><td><b>${tm}</b></td></tr>
-  </table><br>
-  <div style="text-align:center;"><img src="${photoData}" width="140"><br>
-  <small>Confirmation Photo</small></div>`;
-
-  const bill = document.getElementById("bill");
-  bill.innerHTML = html;
-  bill.style.display = "block";
-
-  html2canvas(bill).then(c => {
-    const a = document.createElement("a");
-    a.href     = c.toDataURL();
-    a.download = "AKAI_Bill_" + document.getElementById("challan").value + ".jpg";
+  const bill=document.getElementById("bill");
+  bill.innerHTML=html; bill.style.display="block";
+  html2canvas(bill,{scale:2,useCORS:true,backgroundColor:"#ffffff"}).then(canvas=>{
+    const a=document.createElement("a");
+    a.href=canvas.toDataURL("image/jpeg",.92);
+    a.download=`AKAI_${ch}_${dt}.jpg`;
     a.click();
-    bill.style.display = "none";
+    bill.style.display="none";
   });
 }
 
-/* ════════════════════════════════
-   SUBMIT
-════════════════════════════════ */
+/* ══════════════════════════════════════════════════════
+   SUBMIT — with partial quantity overflow handling
+
+   The server now returns:
+     matched: [ { variant, qtyAccepted, qtyExceeded, mrp } ]
+     notMatched: [ { variant, qty, mrp } ]
+
+   qtyAccepted  = how much was written to Data Sheet
+   qtyExceeded  = remainder that had no available rows to fill
+
+   Items with qtyExceeded > 0 stay in the table with the
+   "Qty Exceeded" badge and the remaining quantity.
+   Items fully accepted are removed from the table.
+   Items in notMatched (no challan/SO match at all) also stay.
+   ══════════════════════════════════════════════════════ */
 function submitData() {
   if (!checkFields()) return;
 
+  document.getElementById("processingOverlay").classList.add("active");
+  document.getElementById("submitBtn").disabled = true;
+
+  const challanVal = document.getElementById("challan").value.trim();
+  const soVal      = document.getElementById("dealer").value.trim();
+  const dealerVal  = document.getElementById("dealerName").value.trim();
+  const dateVal    = document.getElementById("date").value;
+
   const cleanItems = Object.values(items).map(i => ({
     variant: String(i.variant).trim(),
-    qty:     Number(i.qty) || 0
+    qty:     Number(i.qty) || 0,
+    mrp:     Number(i.mrp) || 0
   }));
-
-  const payload = {
-    challan: document.getElementById("challan").value.trim(),
-    so:      document.getElementById("dealer").value.trim(),
-    dealer:  document.getElementById("dealerName").value,
-    date:    document.getElementById("date").value,
-    items:   cleanItems,
-    photo:   photoData
-  };
 
   fetch(API_URL, {
     method: "POST",
-    body: new URLSearchParams({ data: JSON.stringify(payload) })
+    body: new URLSearchParams({
+      data: JSON.stringify({
+        challan: challanVal, so: soVal, dealer: dealerVal,
+        date: dateVal, items: cleanItems, photo: photoData,
+        billOffset: BILL_NUMBER_OFFSET
+      })
+    })
   })
   .then(async res => {
     const text = await res.text();
     let data;
-    try { data = JSON.parse(text); }
-    catch { throw new Error("Invalid response from server"); }
-
+    try { data = JSON.parse(text); } catch { throw new Error("Invalid server response"); }
     if (data.status !== "success") throw new Error(data.message || "Server error");
 
-    let temp = {};
-    (data.notMatched || []).forEach(i => { temp[i.variant] = i; });
-    items = temp;
+    /* ── Build download list and new items state ── */
+    const matchedForBill = [];
+    let newItems = {};
+
+    (data.matched || []).forEach(m => {
+      if (m.qtyAccepted > 0) {
+        matchedForBill.push({ variant: m.variant, qty: m.qtyAccepted, mrp: m.mrp });
+      }
+      if (m.qtyExceeded > 0) {
+        newItems[m.variant] = {
+          variant:     m.variant,
+          qty:         m.qtyExceeded,
+          mrp:         m.mrp,
+          exceeded:    !m.alreadyFull,   // red: partial overflow
+          alreadyFull: !!m.alreadyFull   // amber: col G already = col C
+        };
+      }
+    });
+
+    (data.notMatched || []).forEach(i => {
+      newItems[i.variant] = { variant: i.variant, qty: i.qty, mrp: i.mrp, exceeded: false, alreadyFull: false };
+    });
+
+    items = newItems;
     render();
 
-    if (!data.notMatched || data.notMatched.length === 0) {
-      alert("✅ Submitted successfully!");
-      location.reload();
+    if (matchedForBill.length > 0) downloadBill(matchedForBill);
+
+    const exceedCount  = (data.matched  || []).filter(m => m.qtyExceeded > 0 && !m.alreadyFull).length;
+    const fullCount    = (data.matched  || []).filter(m => m.alreadyFull).length;
+    const noMatchCount = (data.notMatched || []).length;
+    const leftover     = exceedCount + fullCount + noMatchCount;
+
+    if (leftover === 0) {
+      showToast("All items submitted successfully!", "success", 4000);
+      setTimeout(() => {
+        document.getElementById("challan").value = "";
+        document.getElementById("dealer").value  = "";
+        document.getElementById("dealerName").value = "";
+        photoData = "";
+        document.getElementById("preview").innerHTML = "";
+        document.getElementById("photoConfirmedBox").style.display = "none";
+        document.getElementById("openCamBtn").style.display = "flex";
+        goPage(1);
+      }, 1600);
     } else {
-      alert("⚠ Some items did not match — check the table.");
+      let msg = "";
+      if (exceedCount  > 0) msg += `${exceedCount} variant(s) qty exceeded. `;
+      if (fullCount    > 0) msg += `${fullCount} already fully filled. `;
+      if (noMatchCount > 0) msg += `${noMatchCount} not matched.`;
+      showToast("⚠ " + msg.trim() + " Check table.", "warning", 6000);
+      setTimeout(() => goPage(1), 2200);
     }
   })
   .catch(err => {
+    showToast("Submit failed: " + err.message, "error", 5000);
     console.error(err);
-    alert("❌ Submit failed: " + err.message);
+  })
+  .finally(() => {
+    document.getElementById("processingOverlay").classList.remove("active");
+    document.getElementById("submitBtn").disabled = false;
   });
 }
 </script>
