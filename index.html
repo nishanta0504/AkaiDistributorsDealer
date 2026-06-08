@@ -247,11 +247,22 @@ td input[type="number"],td input[type="text"]{width:68px;padding:5px 6px;font-si
     <div class="btn-row">
       <button class="btn btn-accent" onclick="openScanner()" id="scanBtn">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
-        Scan QR
+        QR Scan
       </button>
       <button class="btn btn-outline" onclick="toggleEdit()" id="editBtn">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Manual
+      </button>
+    </div>
+    <!-- Long barcode scanner link -->
+    <div style="background:linear-gradient(135deg,rgba(79,70,229,.12),rgba(124,58,237,.1));border:1.5px solid rgba(124,58,237,.3);border-radius:9px;padding:9px 12px;display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <div style="font-size:18px">📦</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:#4f46e5">Long Barcode Scanner</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px">For Titan-style 1D barcodes — opens dedicated scanner</div>
+      </div>
+      <button class="btn btn-sm" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;flex-shrink:0;padding:8px 12px" onclick="openBarcodeScanner()">
+        Open
       </button>
     </div>
 
@@ -772,6 +783,43 @@ function addItem() {
   render();
 }
 function removeItem(k) { delete items[k]; render(); }
+
+/* ── OPEN BARCODE SCANNER (separate page) ────────────────────
+   Opens barcode_scanner.html in same tab via window.open.
+   When user returns, they can paste the UID manually,
+   OR the scanner page can postMessage results back.         */
+let barcodeWindow = null;
+
+function openBarcodeScanner() {
+  // Pass current items count so scanner knows context
+  barcodeWindow = window.open("barcode_scanner.html", "barcodeScanner",
+    "width=" + window.screen.width + ",height=" + window.screen.height);
+}
+
+/* Listen for results posted back from barcode_scanner.html */
+window.addEventListener("message", function(e) {
+  if (!e.data || e.data.type !== "BARCODE_SCAN") return;
+  const code = String(e.data.uid || "").trim();
+  if (!code) return;
+
+  // Close scanner window
+  if (barcodeWindow && !barcodeWindow.closed) barcodeWindow.close();
+
+  // Lookup and add to items
+  lookupUID(code).then(data => {
+    if (!data || !data.variant) {
+      showToast("Not found: " + code.substring(0, 18), "error");
+    } else {
+      if (!items[data.variant]) {
+        items[data.variant] = { variant: data.variant, qty: 1, mrp: Number(data.mrp)||0, exceeded: false, alreadyFull: false };
+      } else {
+        items[data.variant].qty++;
+      }
+      render();
+      showToast(data.variant + " ×" + items[data.variant].qty, "success", 2000);
+    }
+  }).catch(() => showToast("Lookup error", "error"));
+});
 
 /* ── VALIDATION ── */
 function checkFields() {
