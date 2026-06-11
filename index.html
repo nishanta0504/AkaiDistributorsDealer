@@ -7,7 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800;900&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root{
     --slate:#2b4257; --slate-2:#34506a; --slate-dk:#22384b; --slate-ink:#1d2f3f;
@@ -172,8 +173,8 @@
 <!-- ════════════ CONFIG: paste each page's Web App URL ════════════ -->
 <script>
   // Page 1 — Target Vs Achievement spreadsheet Web App URL
-  const TVA_URL = "https://script.google.com/macros/s/AKfycbzA5FoK_Rz1y5Qh9i4InkbowjdKg2iXAC6WdeVrl-zdYd5dLCqrJ8tU_D6zArVu79mh/exec";
-  // Page 2 — Service Query spreadsheet Web App URL
+  const TVA_URL = "https://script.google.com/macros/s/AKfycbzA5FoK_Rz1y5Qh9i4InkbowjdKg2iXAC6WdeVrl-zdYd5dLCqrJ8tU_D6zArVu79mh/exec";   
+  // Page 2 — Service Query spreadsheet Web App URL   
   const SRF_URL = "https://script.google.com/macros/s/AKfycbzyegqh7qxr8MF08nze2E4iTvt-fIIc4aWZRAAI4hP5XBPDTrfPeQAHnVQE5DuB3Xxj/exec";
 </script>
 
@@ -467,80 +468,92 @@
 
   function downloadTVApdf(){
     if(!tvaWatch || !tvaTableData){alert("Please search for a dealer first.");return;}
+    if(!window.jspdf || !window.jspdf.jsPDF){alert("PDF library not loaded. Check your internet connection and reload.");return;}
     const base=tvaWatch;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:"pt",format:"a4"});
+    const W = doc.internal.pageSize.getWidth();
+    const M = 40;                 // margin
+    const innerW = W - M*2;
 
     const now=new Date();
     const stamp=now.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"long",year:"numeric"})
-              +" &bull; "+now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+              +"  •  "+now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
 
-    let thead="";
-    tvaTableData.headers.forEach(h=>{ thead+='<th>'+esc(h)+'</th>'; });
+    // ---- header band ----
+    doc.setFillColor(246,241,231);            // cream
+    doc.rect(M, M, innerW, 78, "F");
+    doc.setDrawColor(227,165,46); doc.setLineWidth(2.5);
+    doc.line(M, M+78, M+innerW, M+78);        // amber underline
 
-    let tbody="";
-    tvaTableData.rows.forEach(r=>{
-      tbody+='<tr>';
-      for(let c=0;c<tvaTableData.headers.length;c++){
-        const isFirst=(c===0);
-        const isLast=(c===tvaTableData.headers.length-1);
-        const color=isLast?('color:'+r[tvaTableData.headers.length]+';font-weight:700;'):'';
-        const fw=isFirst?'font-weight:600;color:#1d2f3f;text-align:left;':'';
-        tbody+='<td style="'+color+fw+'">'+esc(r[c])+'</td>';
-      }
-      tbody+='</tr>';
+    doc.setTextColor(29,47,63);
+    doc.setFont("times","bold"); doc.setFontSize(20);
+    doc.text("AKAI DISTRIBUTORS", W/2, M+24, {align:"center"});
+
+    doc.setTextColor(201,142,29);
+    doc.setFont("helvetica","bold"); doc.setFontSize(12);
+    doc.text("Target Vs Achievement — "+(tvaMode==='watches'?'Watches':'Spares'), W/2, M+42, {align:"center"});
+    doc.setFontSize(11);
+    doc.text("Target for the month: "+String(tvaMonthValue), W/2, M+57, {align:"center"});
+
+    doc.setTextColor(125,136,150);
+    doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    doc.text("Generated: "+stamp, W/2, M+71, {align:"center"});
+
+    // ---- dealer strip ----
+    let y = M+78;
+    const stripH = 46;
+    doc.setFillColor(239,231,214);
+    doc.rect(M, y, innerW, stripH, "F");
+    doc.setDrawColor(230,221,205); doc.setLineWidth(0.7);
+    const colW = innerW/3;
+    doc.line(M+colW, y, M+colW, y+stripH);
+    doc.line(M+colW*2, y, M+colW*2, y+stripH);
+
+    const cells=[["CODE",base.code],["DEALER",base.dealer],["TOWN",base.town]];
+    cells.forEach((c,i)=>{
+      const cx=M+colW*i+12;
+      doc.setTextColor(125,136,150); doc.setFont("helvetica","bold"); doc.setFontSize(8);
+      doc.text(String(c[0]), cx, y+17);
+      doc.setTextColor(29,47,63); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+      const txt = doc.splitTextToSize(String(c[1]==null?"":c[1]), colW-22);
+      doc.text(txt, cx, y+33);
     });
+    y += stripH + 16;
 
-    let totalRow="";
+    // ---- table ----
+    const head=[ tvaTableData.headers ];
+    const bodyRows = tvaTableData.rows.map(r=>{
+      const out=[];
+      for(let c=0;c<tvaTableData.headers.length;c++) out.push(String(r[c]));
+      return out;
+    });
     if(tvaTableData.totalLabel){
-      totalRow='<tr class="tot"><td colspan="'+(tvaTableData.headers.length-1)+'" style="text-align:left;">'
-        +esc(tvaTableData.totalLabel)+'</td><td>'+esc(tvaTableData.totalVal)+'</td></tr>';
+      const totalCells=[{content:tvaTableData.totalLabel, colSpan:tvaTableData.headers.length-1,
+        styles:{halign:'left',fontStyle:'bold',fillColor:[251,243,225],textColor:[29,47,63]}}];
+      totalCells.push({content:tvaTableData.totalVal,
+        styles:{halign:'center',fontStyle:'bold',fillColor:[251,243,225],textColor:[201,142,29]}});
+      bodyRows.push(totalCells);
     }
 
-    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Akai_${tvaMode==='watches'?'Watches':'Spares'}_${esc(tvaCode)}</title>
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0;}
-      body{font-family:Arial,Helvetica,sans-serif;color:#27323b;padding:18px;}
-      .hd{text-align:center;padding:20px 18px 14px;background:#f6f1e7;border-bottom:3px solid #e3a52e;}
-      .hd .t1{font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:800;color:#1d2f3f;letter-spacing:1px;}
-      .hd .t2{color:#c98e1d;font-size:14px;font-weight:700;margin-top:4px;}
-      .hd .t3{color:#c98e1d;font-size:13px;font-weight:700;margin-top:3px;}
-      .hd .t4{color:#7d8896;font-size:11px;margin-top:7px;}
-      .strip{display:flex;background:#efe7d6;border-bottom:1px solid #e6ddcd;}
-      .strip>div{flex:1;padding:13px 18px;border-right:1px solid #e6ddcd;}
-      .strip>div:last-child{border-right:none;}
-      .strip .lbl{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7d8896;font-weight:700;margin-bottom:4px;}
-      .strip .val{font-size:15px;font-weight:600;color:#1d2f3f;}
-      table{width:100%;border-collapse:collapse;margin:16px 0;}
-      th{background:#34506a;color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:11px 8px;border:1px solid #2b4257;text-align:center;}
-      td{padding:11px 8px;border:1px solid #e6ddcd;text-align:center;font-size:13px;}
-      tr.tot td{background:#fbf3e1;border-top:2px solid #e3a52e;font-weight:800;color:#1d2f3f;font-size:13px;}
-      tr.tot td:last-child{color:#c98e1d;}
-      .disc{text-align:center;font-size:11.5px;color:#7d8896;font-style:italic;padding:6px 0 0;}
-      @media print{body{padding:0;}}
-    </style></head><body>
-      <div class="hd">
-        <div class="t1">AKAI DISTRIBUTORS</div>
-        <div class="t2">Target Vs Achievement &mdash; ${tvaMode==='watches'?'Watches':'Spares'}</div>
-        <div class="t3">Target for the month: ${esc(tvaMonthValue)}</div>
-        <div class="t4">Generated: ${stamp}</div>
-      </div>
-      <div class="strip">
-        <div><div class="lbl">Code</div><div class="val">${esc(base.code)}</div></div>
-        <div><div class="lbl">Dealer</div><div class="val">${esc(base.dealer)}</div></div>
-        <div><div class="lbl">Town</div><div class="val">${esc(base.town)}</div></div>
-      </div>
-      <table><thead><tr>${thead}</tr></thead><tbody>${tbody}${totalRow}</tbody></table>
-      <div class="disc">Disclaimer: data is entered manually and may vary.</div>
-      <script>
-        window.onload=function(){ setTimeout(function(){ window.print(); }, 350); };
-        window.onafterprint=function(){ window.close(); };
-      <\/script>
-    </body></html>`;
+    doc.autoTable({
+      startY:y, margin:{left:M,right:M},
+      head:head, body:bodyRows,
+      theme:'grid',
+      headStyles:{fillColor:[52,80,106],textColor:[255,255,255],fontStyle:'bold',fontSize:9,halign:'center'},
+      bodyStyles:{fontSize:10,textColor:[39,50,59],halign:'center',lineColor:[230,221,205],lineWidth:0.5},
+      columnStyles:{0:{halign:'left',fontStyle:'bold',textColor:[29,47,63]}},
+      styles:{cellPadding:6}
+    });
 
-    const w=window.open("","_blank");
-    if(!w){alert("Please allow pop-ups for this site to download the PDF.");return;}
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+    // ---- disclaimer ----
+    let dy = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 22;
+    doc.setTextColor(125,136,150); doc.setFont("helvetica","italic"); doc.setFontSize(9);
+    doc.text("Disclaimer: data is entered manually and may vary.", W/2, dy, {align:"center"});
+
+    // ---- save (auto download, no preview) ----
+    const code=String(tvaCode||"record").replace(/[^\w-]/g,"");
+    doc.save('Akai_'+(tvaMode==='watches'?'Watches':'Spares')+'_'+code+'.pdf');
   }
 
   /* ===== PAGE 2: SERVICE QUERY ===== */
