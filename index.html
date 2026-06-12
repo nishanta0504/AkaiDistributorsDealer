@@ -606,7 +606,7 @@
         </div>
         <div class="sec-lbl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Customer &amp; Dealer Info</div>
         <div class="field-row"><div class="f-label">Date</div>${fval(item.Date,"accent")}</div>
-        <div class="field-row"><div class="f-label">Dealer Name</div>${fval(item.DealerName)}</div>
+        <div class="field-row"><div class="f-label">Dealer Name</div>${fval(item.Dealer)}</div>
         <div class="field-row"><div class="f-label">Salesman</div>${fval(item.Salesman)}</div>
         <div class="field-row"><div class="f-label">Date of Purchase</div>${fval(item.DOP)}</div>
         <div class="field-row"><div class="f-label">Variant</div>${fval(item.Variant)}</div>
@@ -614,10 +614,10 @@
         <div class="field-row"><div class="f-label">Complaint</div>${fval(item.Complain)}</div>
         <div class="field-row"><div class="f-label">Job Offered</div>${fval(item.JobOffer)}</div>
         <div class="sec-lbl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Status</div>
-        <div class="field-row"><div class="f-label">Received</div>${pill(item.Received)}</div>
+        <div class="field-row"><div class="f-label">Received</div>${fval(item.Receive)}</div>
         <div class="field-row"><div class="f-label">Charge</div>${fval(item.Charge)}</div>
-        <div class="field-row"><div class="f-label">Delivered</div>${pill(item.Delivered)}</div>
-        <div class="field-row"><div class="f-label">Paid</div>${pill(item.Paid)}</div>
+        <div class="field-row"><div class="f-label">Delivered</div>${fval(item.Delivery)}</div>
+        <div class="field-row"><div class="f-label">Paid</div>${fval(item.Paid)}</div>
       </div>`;
     });
     container.innerHTML=html;
