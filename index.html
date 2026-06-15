@@ -75,7 +75,8 @@
   @keyframes spin{to{transform:rotate(360deg);}}
 
   .seg{display:inline-flex;background:var(--slate-dk);border-radius:30px;padding:4px;margin-bottom:18px;}
-  .seg button{border:none;background:transparent;color:rgba(255,255,255,.55);font-size:13px;font-weight:700;padding:9px 24px;border-radius:30px;cursor:pointer;letter-spacing:.4px;transition:.15s;display:flex;align-items:center;gap:7px;}
+  .seg button{border:none;background:transparent;color:rgba(255,255,255,.55);font-size:16px;font-weight:700;padding:11px 30px;border-radius:30px;cursor:pointer;letter-spacing:.4px;transition:.15s;display:flex;align-items:center;gap:8px;}
+  .seg button svg{width:17px;height:17px;}
   .seg button.active{background:var(--amber);color:var(--slate-ink);}
 
   .results-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;flex-wrap:wrap;gap:10px;}
@@ -329,6 +330,8 @@
       tvaWatch=data; clearStatus("tva");
       if(!data){renderTVAEmpty();return;}
       tvaMode="watches"; renderTVA();
+      // log this search (date/time, code, dealer name) to the "searched" sheet
+      jsonp(TVA_URL,{fn:"logSearch",arg:code,dealer:(data.dealer||"")},function(){});
     });
   }
 
